@@ -2,7 +2,13 @@ const mongoose = require('mongoose');
 const express = require('express');
 const app = express();
 
+const fileUploadMiddleware = require('express-fileupload')
+
 app.use(express.urlencoded({extended:true}))
+app.use(fileUploadMiddleware())
+
+
+app.use(express.static('public'))
 
 const dbHelper = require('./db.js')
 
@@ -28,11 +34,48 @@ const RestaurantSchema = new mongoose.Schema({
         required: true
     },
     cuisine: String, //change to Enum later,
+    imageURL: String
 
 })
 
 //creating Model
 const RestaurantModel = mongoose.model('Restaurant', RestaurantSchema) //restarauntss
+
+app.get('/', (req, res) => {
+    res.sendFile(`${__dirname}/restaurantForm.html`)
+})
+
+//Create  restaurant
+app.post(`/restaurants`,async(req,res)=>{
+    try {
+        
+        const data = req.body
+
+        const fileData = req.files.restaurantImage
+        console.log('File Received', fileData)
+
+        const fileName = `${fileData.md5}-${fileData.name}`
+        
+        const filePath = `${__dirname}/public/userUploads${fileName}`
+        await fileData.mv(filePath)
+
+        data.imageURL = `userUploads/${fileName}`
+        
+        console.log("data", data)
+
+        const insertedData  = await RestaurantModel.create(data)
+        
+        res.send(insertedData)
+
+    } catch (error) {
+        res.send({
+            error: true,
+            errorObj: error
+        })
+    }
+
+})
+
 
 //Get All  restaurant
 app.get(`/restaurants`, async (req,res)=>{
@@ -67,23 +110,7 @@ app.get(`/restaurants/:uniqueId`, async (req,res)=>{
 
 })
 
-//Create  restaurant
-app.post(`/restaurants`,async(req,res)=>{
-    try {
-        
-        const data = req.body
 
-        const insertedData  = await RestaurantModel.create(data)
-        res.send(insertedData)
-
-    } catch (error) {
-        res.send({
-            error: true,
-            errorObj: error
-        })
-    }
-
-})
 
 // update restaurant
 app.put('/restaurants/:uniqueID',async (req,res)=>{
