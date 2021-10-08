@@ -1,47 +1,29 @@
-const mongoose = require('mongoose');
 const express = require('express');
 const app = express();
+const { checkLoggedIn, logger } = require('./middlewares/middle.js')
+const morgan = require('morgan')
 
 const fileUploadMiddleware = require('express-fileupload')
 
 app.use(express.urlencoded({extended:true}))
 app.use(fileUploadMiddleware())
+app.use(morgan('dev'))
 
 
 app.use(express.static('public'))
 
 const dbHelper = require('./db.js')
+const Restaurant = require('./models/Restaurant.js')
+
 
 dbHelper.dbInit()
 
-//Schema Definition
-const RestaurantSchema = new mongoose.Schema({
 
-    name: {
-        type: String,
-        required: true
-    },
-    location: {
-        type: String,
-        required: true,
-    },
-    avgRating: {
-        type: Number,
-        default: 0
-    },
-    contactNumber: {
-        type: String,
-        required: true
-    },
-    cuisine: String, //change to Enum later,
-    imageURL: String
 
-})
+// app.use(logger)
+// app.use(checkLoggedIn)
 
-//creating Model
-const RestaurantModel = mongoose.model('Restaurant', RestaurantSchema) //restarauntss
-
-app.get('/', (req, res) => {
+app.get('/', logger, (req, res) => {
     res.sendFile(`${__dirname}/restaurantForm.html`)
 })
 
@@ -63,7 +45,7 @@ app.post(`/restaurants`,async(req,res)=>{
         
         console.log("data", data)
 
-        const insertedData  = await RestaurantModel.create(data)
+        const insertedData  = await Restaurant.create(data)
         
         res.send(insertedData)
 
@@ -81,7 +63,7 @@ app.post(`/restaurants`,async(req,res)=>{
 app.get(`/restaurants`, async (req,res)=>{
     try {
         
-        const insertedData  = await RestaurantModel.find({})
+        const insertedData  = await Restaurant.find({})
         res.send(insertedData)
 
     } catch (error) {
@@ -98,7 +80,7 @@ app.get(`/restaurants`, async (req,res)=>{
 app.get(`/restaurants/:uniqueId`, async (req,res)=>{
     try {
         
-        const restaurant  = await RestaurantModel.findById(req.params.uniqueId)
+        const restaurant  = await Restaurant.findById(req.params.uniqueId)
         res.send(restaurant)
 
     } catch (error) {
@@ -116,7 +98,7 @@ app.get(`/restaurants/:uniqueId`, async (req,res)=>{
 app.put('/restaurants/:uniqueID',async (req,res)=>{
     try{
         const data = req.body
-        const updatedData = await RestaurantModel.findByIdAndUpdate(req.params.uniqueID, data)
+        const updatedData = await Restaurant.findByIdAndUpdate(req.params.uniqueID, data)
         res.send(updatedData)
     }
     catch(err){
@@ -132,7 +114,7 @@ app.put('/restaurants/:uniqueID',async (req,res)=>{
 app.delete('/restaurants/:uniqueID',async (req,res)=>{
     try{
         
-        const deletedData = await RestaurantModel.findByIdAndDelete(req.params.uniqueID)
+        const deletedData = await Restaurant.findByIdAndDelete(req.params.uniqueID)
         res.send(deletedData)
     }
     catch(err){
