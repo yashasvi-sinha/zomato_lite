@@ -2,7 +2,7 @@ const express = require('express');
 const app = express();
 const { checkLoggedIn, logger } = require('./middlewares/middle.js')
 const morgan = require('morgan')
-
+const expSession = require('express-session')
 const fileUploadMiddleware = require('express-fileupload')
 
 app.use(express.urlencoded({extended:true}))
@@ -10,7 +10,8 @@ app.use(fileUploadMiddleware())
 app.use(morgan('dev'))
 
 
-app.use(express.static('public'))
+app.use(express.static('public')) 
+app.use(express.static('views'))
 
 const dbHelper = require('./db.js')
 const Restaurant = require('./models/Restaurant.js')
@@ -18,17 +19,50 @@ const Restaurant = require('./models/Restaurant.js')
 
 dbHelper.dbInit()
 
+const oneDay = 1000 * 60 * 60 * 24;
+
+const myRegister = new expSession.MemoryStore()
+
+app.use(expSession({
+    secret: "alkjsdlakjsdlnl1k2j3lknlzkxcjalskdj",
+    saveUninitialized: true,
+    resave: false,
+    store: myRegister,
+    name: "zomato_lite",
+    cookie: { maxAge: oneDay }
+}))
 
 
-// app.use(logger)
-// app.use(checkLoggedIn)
+
+
+app.post('/login', (req, res) => {
+    console.log("app.post ~ req.body", req.body)
+    const { emailId, pass } = req.body
+    console.log(req.session)
+
+    //
+    
+
+    if (isUserExist.length === 1) {
+        req.session.user = emailId
+        req.session.loggedIn = true
+        console.log(req.session)
+        res.redirect('/restaurants')
+    }else{
+        res.redirect('/login')
+    }
+})
+
+
+
+
 
 app.get('/', logger, (req, res) => {
     res.sendFile(`${__dirname}/restaurantForm.html`)
 })
 
 //Create  restaurant
-app.post(`/restaurants`,async(req,res)=>{
+app.post(`/restaurants`, checkAuth, async(req,res)=>{
     try {
         
         const data = req.body
@@ -59,8 +93,19 @@ app.post(`/restaurants`,async(req,res)=>{
 })
 
 
+function checkAuth(req, res, next){
+
+    console.log("Store/Register", myRegister)
+    if(req.session.user && req.session.loggedIn === true){
+        next()
+    }else{
+        res.redirect('/login')
+    }
+
+}
+
 //Get All  restaurant
-app.get(`/restaurants`, async (req,res)=>{
+app.get(`/restaurants`, checkAuth, async (req,res)=>{
     try {
         
         const insertedData  = await Restaurant.find({})
@@ -77,7 +122,7 @@ app.get(`/restaurants`, async (req,res)=>{
 
 
 //Get Specific  restaurant
-app.get(`/restaurants/:uniqueId`, async (req,res)=>{
+app.get(`/restaurants/:uniqueId`, checkAuth, async (req,res)=>{
     try {
         
         const restaurant  = await Restaurant.findById(req.params.uniqueId)
@@ -95,7 +140,7 @@ app.get(`/restaurants/:uniqueId`, async (req,res)=>{
 
 
 // update restaurant
-app.put('/restaurants/:uniqueID',async (req,res)=>{
+app.put('/restaurants/:uniqueID',checkAuth, async (req,res)=>{
     try{
         const data = req.body
         const updatedData = await Restaurant.findByIdAndUpdate(req.params.uniqueID, data)
@@ -111,7 +156,7 @@ app.put('/restaurants/:uniqueID',async (req,res)=>{
 
 
 // Delete restaurant
-app.delete('/restaurants/:uniqueID',async (req,res)=>{
+app.delete('/restaurants/:uniqueID', checkAuth, async (req,res)=>{
     try{
         
         const deletedData = await Restaurant.findByIdAndDelete(req.params.uniqueID)
