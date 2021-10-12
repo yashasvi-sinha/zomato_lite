@@ -1,173 +1,122 @@
 const express = require('express');
-const app = express();
-const { checkLoggedIn, logger } = require('./middlewares/middle.js')
 const morgan = require('morgan')
-const expSession = require('express-session')
+const dbHelper = require('./db.js')
 const fileUploadMiddleware = require('express-fileupload')
+const jwt = require('jsonwebtoken')
+
+const restaurantRoutes = require('./routes/restaurant')
+
+const app = express();
+
+const UserModel = require('./models/User')
 
 app.use(express.urlencoded({extended:true}))
+app.use(express.json())
 app.use(fileUploadMiddleware())
 app.use(morgan('dev'))
-
 
 app.use(express.static('public')) 
 app.use(express.static('views'))
 
-const dbHelper = require('./db.js')
-const Restaurant = require('./models/Restaurant.js')
-
-
 dbHelper.dbInit()
 
-const oneDay = 1000 * 60 * 60 * 24;
-
-const myRegister = new expSession.MemoryStore()
-
-app.use(expSession({
-    secret: "alkjsdlakjsdlnl1k2j3lknlzkxcjalskdj",
-    saveUninitialized: true,
-    resave: false,
-    store: myRegister,
-    name: "zomato_lite",
-    cookie: { maxAge: oneDay }
-}))
+app.use("/restaurants", restaurantRoutes)
 
 
 
+//Add a user to the database
+app.post('/users', async (req, res) => {
 
-app.post('/login', (req, res) => {
-    console.log("app.post ~ req.body", req.body)
-    const { emailId, pass } = req.body
-    console.log(req.session)
 
-    //
+    try {
+        const {email, pass} = req.body
+        console.log("app.post ~ req.body", req.body)
+
+        //validations
+        if (!email || !pass) {
+            res.json({
+                error: true,
+                message: "Empty data"
+            })
+            return
+        }
+
+        const oldUserPresent = await UserModel.findOne({ email: email})
+        
+        if (oldUserPresent && oldUserPresent.email === email) {
+            res.json({
+                error: true,
+                message: "User already existing"
+            })
+            return
+        }
+
+        const userInserted = await UserModel.create({ email: email, password: pass })
+
+
+        res.json(userInserted)
     
-
-    if (isUserExist.length === 1) {
-        req.session.user = emailId
-        req.session.loggedIn = true
-        console.log(req.session)
-        res.redirect('/restaurants')
-    }else{
-        res.redirect('/login')
-    }
-})
-
-
-
-
-
-app.get('/', logger, (req, res) => {
-    res.sendFile(`${__dirname}/restaurantForm.html`)
-})
-
-//Create  restaurant
-app.post(`/restaurants`, checkAuth, async(req,res)=>{
-    try {
-        
-        const data = req.body
-
-        const fileData = req.files.restaurantImage
-        console.log('File Received', fileData)
-
-        const fileName = `${fileData.md5}-${fileData.name}`
-        
-        const filePath = `${__dirname}/public/userUploads${fileName}`
-        await fileData.mv(filePath)
-
-        data.imageURL = `userUploads/${fileName}`
-        
-        console.log("data", data)
-
-        const insertedData  = await Restaurant.create(data)
-        
-        res.send(insertedData)
-
-    } catch (error) {
-        res.send({
+    } catch (err) {
+        res.json({
             error: true,
-            errorObj: error
+            errorObj: err,
+            message: "Unknown Error"
         })
     }
 
 })
 
 
-function checkAuth(req, res, next){
 
-    console.log("Store/Register", myRegister)
-    if(req.session.user && req.session.loggedIn === true){
-        next()
-    }else{
-        res.redirect('/login')
-    }
+app.post('/login', async (req, res) => {
 
-}
 
-//Get All  restaurant
-app.get(`/restaurants`, checkAuth, async (req,res)=>{
     try {
-        
-        const insertedData  = await Restaurant.find({})
-        res.send(insertedData)
+        const {email, pass} = req.body
+        console.log("app.post ~ req.body", req.body)
 
-    } catch (error) {
-        res.send({
+        //validations
+        if (!email || !pass) {
+            res.json({
+                error: true,
+                message: "Empty data"
+            })
+            return
+        }
+
+        const oldUserPresent = await UserModel.findOne({ email: email})
+        
+        if (oldUserPresent && oldUserPresent.email === email && oldUserPresent.password === pass) {
+            //
+
+            //generate a token
+            const secret = "This is my secret key"
+            const jwtToken = jwt.sign({ currentUser: oldUserPresent.email }, secret, { expiresIn: '2d' })
+
+            res.json({
+                error: false,
+                message: "User Logged in",
+                token: jwtToken
+            })
+            return
+        }
+
+
+        res.json({
             error: true,
-            errorObj: error
+            message: "User credentials does not match"
         })
-    }
 
-})
-
-
-//Get Specific  restaurant
-app.get(`/restaurants/:uniqueId`, checkAuth, async (req,res)=>{
-    try {
-        
-        const restaurant  = await Restaurant.findById(req.params.uniqueId)
-        res.send(restaurant)
-
-    } catch (error) {
-        res.send({
+    
+    
+    } catch (err) {
+        res.json({
             error: true,
-            errorObj: error
+            errorObj: err,
+            message: "Unknown Error"
         })
     }
 
-})
-
-
-
-// update restaurant
-app.put('/restaurants/:uniqueID',checkAuth, async (req,res)=>{
-    try{
-        const data = req.body
-        const updatedData = await Restaurant.findByIdAndUpdate(req.params.uniqueID, data)
-        res.send(updatedData)
-    }
-    catch(err){
-        res.send({
-            error:true,
-            errorObj:err
-        })
-    }
-})
-
-
-// Delete restaurant
-app.delete('/restaurants/:uniqueID', checkAuth, async (req,res)=>{
-    try{
-        
-        const deletedData = await Restaurant.findByIdAndDelete(req.params.uniqueID)
-        res.send(deletedData)
-    }
-    catch(err){
-        res.send({
-            error:true,
-            errorObj:err
-        })
-    }
 })
 
 
