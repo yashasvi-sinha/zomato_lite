@@ -20,7 +20,7 @@ function checkJWTToken(req, res, next){
     }
 }
 
-restaurantRoutes.use(checkJWTToken)
+// restaurantRoutes.use(checkJWTToken)
 
 //Create  restaurant
 restaurantRoutes.post(`/`, async(req,res)=>{
