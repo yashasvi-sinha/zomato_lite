@@ -1,6 +1,14 @@
 const Restaurant = require('../models/Restaurant')
 const { Router } = require('express')
 const jwt = require('jsonwebtoken')
+const redis = require('redis')
+
+const REDIS_PORT = process.env.REDIS_PORT || 6379
+const redisClient = redis.createClient(REDIS_PORT);
+
+
+const { promisify } = require("util");
+const getRedisAsync = promisify(redisClient.get).bind(redisClient);
 
 const restaurantRoutes = Router()
 
@@ -72,25 +80,25 @@ restaurantRoutes.get(`/`, async (req,res)=>{
 })
 
 
-const fetchedRestaurants = {}
-
 //Get Specific  restaurant
 restaurantRoutes.get(`/:uniqueId`, async (req,res)=>{
     try {
 
 
-        console.log("fetchedRestaurants", fetchedRestaurants)
-        
-        if (fetchedRestaurants[req.params.uniqueId]) {
-            return res.json(fetchedRestaurants[req.params.uniqueId])
+        const data = await getRedisAsync(req.params.uniqueId)
+
+        if (data) {
+            const restaurantObj = JSON.parse(data)
+            return res.json(restaurantObj)
         }
-        
-        console.log('Fetching from Database')
+
         const restaurant  = await Restaurant.findById(req.params.uniqueId)
-        fetchedRestaurants[req.params.uniqueId] = restaurant
         
-        console.log("fetchedRestaurants", fetchedRestaurants)
+        redisClient.setex(req.params.uniqueId, 36000,  JSON.stringify(restaurant) )
+    
         res.json(restaurant)
+       
+        
 
     } catch (error) {
         res.send({
@@ -108,7 +116,9 @@ restaurantRoutes.put('/:uniqueID', async (req,res)=>{
     try{
         const data = req.body
         const updatedData = await Restaurant.findByIdAndUpdate(req.params.uniqueID, data)
+        delete fetchedRestaurants[req.params.uniqueID]
         res.send(updatedData)
+
     }
     catch(err){
         res.send({
