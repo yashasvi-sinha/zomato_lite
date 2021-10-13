@@ -72,12 +72,25 @@ restaurantRoutes.get(`/`, async (req,res)=>{
 })
 
 
+const fetchedRestaurants = {}
+
 //Get Specific  restaurant
 restaurantRoutes.get(`/:uniqueId`, async (req,res)=>{
     try {
+
+
+        console.log("fetchedRestaurants", fetchedRestaurants)
         
+        if (fetchedRestaurants[req.params.uniqueId]) {
+            return res.json(fetchedRestaurants[req.params.uniqueId])
+        }
+        
+        console.log('Fetching from Database')
         const restaurant  = await Restaurant.findById(req.params.uniqueId)
-        res.send(restaurant)
+        fetchedRestaurants[req.params.uniqueId] = restaurant
+        
+        console.log("fetchedRestaurants", fetchedRestaurants)
+        res.json(restaurant)
 
     } catch (error) {
         res.send({
