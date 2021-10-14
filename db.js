@@ -1,5 +1,5 @@
 const mongoose = require('mongoose')
-const DB_URL = `mongodb+srv://server_application:cVY8tgJZtdewbZbY@cluster0.xdoik.mongodb.net/zomato_lite?retryWrites=true&w=majority`
+const DB_URL = process.env.DATABASE_URL
 
 async function dbInit(){
     await mongoose.connect(DB_URL)

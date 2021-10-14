@@ -1,0 +1,2 @@
+1. env files
+2. Revision of session (basic example)
