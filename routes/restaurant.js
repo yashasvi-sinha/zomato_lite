@@ -1,26 +1,19 @@
 const Restaurant = require('../models/Restaurant')
 const { Router } = require('express')
 const jwt = require('jsonwebtoken')
-const redis = require('redis')
-
-const REDIS_PORT = process.env.REDIS_PORT || 6379
-const redisClient = redis.createClient(REDIS_PORT);
-
-
-const { promisify } = require("util");
-const getRedisAsync = promisify(redisClient.get).bind(redisClient);
 
 const restaurantRoutes = Router()
 
 
 function checkJWTToken(req, res, next){
+    console.log(`🚀 ~ checkJWTToken ~ req`, req.headers)
     
     try {
-        const authTokenDecodedData = jwt.verify(req.query.authToken, "This is my secret key")
+        const authTokenDecodedData = jwt.verify(req.headers.token, "This is my secret key")
         console.log(authTokenDecodedData)
         next()
     } catch (err) {
-        res.json({
+        res.status(401).json({
             error: true,
             errorObj: err,
             message: "Invalid Token",
@@ -28,7 +21,7 @@ function checkJWTToken(req, res, next){
     }
 }
 
-// restaurantRoutes.use(checkJWTToken)
+restaurantRoutes.use(checkJWTToken)
 
 //Create  restaurant
 restaurantRoutes.post(`/`, async(req,res)=>{
@@ -84,21 +77,8 @@ restaurantRoutes.get(`/`, async (req,res)=>{
 restaurantRoutes.get(`/:uniqueId`, async (req,res)=>{
     try {
 
-
-        const data = await getRedisAsync(req.params.uniqueId)
-
-        if (data) {
-            const restaurantObj = JSON.parse(data)
-            return res.json(restaurantObj)
-        }
-
-        const restaurant  = await Restaurant.findById(req.params.uniqueId)
-        
-        redisClient.setex(req.params.uniqueId, 36000,  JSON.stringify(restaurant) )
-    
+        const restaurant  = await Restaurant.findById(req.params.uniqueId)    
         res.json(restaurant)
-       
-        
 
     } catch (error) {
         res.send({

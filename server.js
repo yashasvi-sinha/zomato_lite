@@ -21,12 +21,12 @@ app.use(express.static('views'))
 
 dbHelper.dbInit()
 
-app.use("/restaurants", restaurantRoutes)
+app.use("/api/restaurants", restaurantRoutes)
 
 
 
 //Add a user to the database
-app.post('/users', async (req, res) => {
+app.post('/api/users', async (req, res) => {
 
 
     try {
@@ -69,7 +69,7 @@ app.post('/users', async (req, res) => {
 
 
 
-app.post('/login', async (req, res) => {
+app.post('/api/login', async (req, res) => {
 
 
     try {
@@ -119,8 +119,6 @@ app.post('/login', async (req, res) => {
     }
 
 })
-
-console.log(process.env)
 
 const PORT = process.env.PORT || 3000
 app.listen(PORT, () => {
